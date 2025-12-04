@@ -17,7 +17,7 @@
                 <button onclick="checkCode()" class="btn btn-primary">Проверить код</button>
             </div>
             
-            <div id="error" class="error-message"></div>
+            <div id="error" class="error-message" style="display: none;"></div>
         </div>
         
         <div class="login-box" id="step2" style="display: none;">
@@ -26,66 +26,90 @@
             
             <div class="form-group">
                 <input type="text" id="nickname" placeholder="Имя в чате" class="form-input">
-                <input type="text" id="tgUsername" placeholder="Юзернейм в Telegram (@username)" class="form-input">
+                <input type="text" id="tgUsername" placeholder="@username в Telegram" class="form-input">
                 <button onclick="register()" class="btn btn-primary">Войти в чат</button>
             </div>
         </div>
     </div>
     
     <script>
-        let inviteCode = '';
+        let currentCodeId = null;
         
         async function checkCode() {
-            const code = document.getElementById('inviteCode').value.trim();
+            const codeInput = document.getElementById('inviteCode');
+            const code = codeInput.value.trim();
+            const errorDiv = document.getElementById('error');
+            
             if (!code) {
                 showError('Введите код');
                 return;
             }
             
-            const response = await fetch('/api/check-code', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ code: code })
-            });
-            
-            const data = await response.json();
-            
-            if (data.success) {
-                inviteCode = code;
-                document.getElementById('step1').style.display = 'none';
-                document.getElementById('step2').style.display = 'block';
-            } else {
-                showError(data.message || 'Неверный код');
+            try {
+                const response = await fetch('/api/check-code', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ code: code })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentCodeId = data.codeId;
+                    document.getElementById('step1').style.display = 'none';
+                    document.getElementById('step2').style.display = 'block';
+                    errorDiv.style.display = 'none';
+                } else {
+                    showError(data.message || 'Неверный код');
+                }
+            } catch (error) {
+                showError('Ошибка соединения с сервером');
+                console.error('Ошибка:', error);
             }
         }
         
         async function register() {
             const nickname = document.getElementById('nickname').value.trim();
             const tgUsername = document.getElementById('tgUsername').value.trim();
+            const errorDiv = document.getElementById('error');
             
-            if (!nickname || !tgUsername) {
-                showError('Заполните все поля');
+            if (!nickname) {
+                showError('Введите имя в чате');
                 return;
             }
             
-            const response = await fetch('/api/register', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ 
-                    nickname: nickname,
-                    tgUsername: tgUsername.startsWith('@') ? tgUsername : '@' + tgUsername
-                })
-            });
+            if (!tgUsername) {
+                showError('Введите Telegram username');
+                return;
+            }
             
-            const data = await response.json();
+            // Добавляем @ если нет
+            const formattedTgUsername = tgUsername.startsWith('@') ? tgUsername : '@' + tgUsername;
             
-            if (data.success) {
-                // Сохраняем данные пользователя
-                localStorage.setItem('user', JSON.stringify(data.user));
-                // Переходим в чат
-                window.location.href = 'chat.html';
-            } else {
-                showError(data.message);
+            try {
+                const response = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        nickname: nickname,
+                        tgUsername: formattedTgUsername,
+                        codeId: currentCodeId
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    // Сохраняем данные пользователя
+                    localStorage.setItem('chat_user', JSON.stringify(data.user));
+                    // Переходим в чат
+                    window.location.href = 'chat.html';
+                } else {
+                    showError(data.message || 'Ошибка регистрации');
+                }
+            } catch (error) {
+                showError('Ошибка соединения с сервером');
+                console.error('Ошибка:', error);
             }
         }
         
@@ -93,8 +117,26 @@
             const errorDiv = document.getElementById('error');
             errorDiv.textContent = message;
             errorDiv.style.display = 'block';
-            setTimeout(() => errorDiv.style.display = 'none', 3000);
+            
+            // Автоматически скрыть через 5 секунд
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 5000);
         }
+        
+        // Нажатие Enter в поле кода
+        document.getElementById('inviteCode')?.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') checkCode();
+        });
+        
+        // Нажатие Enter в полях регистрации
+        document.getElementById('nickname')?.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') register();
+        });
+        
+        document.getElementById('tgUsername')?.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') register();
+        });
     </script>
 </body>
 </html>
