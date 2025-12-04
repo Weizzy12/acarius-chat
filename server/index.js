@@ -1,3 +1,4 @@
+const path = require('path');
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
@@ -366,4 +367,5 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Сервер запущен на порту ${PORT}`);
   console.log(`🔗 Доступен по: http://localhost:${PORT}`);
   console.log(`🔑 Первый код: ADMIN123`);
+
 });
