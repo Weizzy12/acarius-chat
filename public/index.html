@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Приватный Чат - Вход</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <div class="login-box" id="step1">
+            <h1>🔒 Приватный Чат</h1>
+            <p>Для входа требуется инвайт-код</p>
+            
+            <div class="form-group">
+                <input type="text" id="inviteCode" placeholder="Введите инвайт-код" class="form-input">
+                <button onclick="checkCode()" class="btn btn-primary">Проверить код</button>
+            </div>
+            
+            <div id="error" class="error-message"></div>
+        </div>
+        
+        <div class="login-box" id="step2" style="display: none;">
+            <h1>📝 Создание профиля</h1>
+            <p>Код принят! Заполните данные:</p>
+            
+            <div class="form-group">
+                <input type="text" id="nickname" placeholder="Имя в чате" class="form-input">
+                <input type="text" id="tgUsername" placeholder="Юзернейм в Telegram (@username)" class="form-input">
+                <button onclick="register()" class="btn btn-primary">Войти в чат</button>
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        let inviteCode = '';
+        
+        async function checkCode() {
+            const code = document.getElementById('inviteCode').value.trim();
+            if (!code) {
+                showError('Введите код');
+                return;
+            }
+            
+            const response = await fetch('/api/check-code', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code: code })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                inviteCode = code;
+                document.getElementById('step1').style.display = 'none';
+                document.getElementById('step2').style.display = 'block';
+            } else {
+                showError(data.message || 'Неверный код');
+            }
+        }
+        
+        async function register() {
+            const nickname = document.getElementById('nickname').value.trim();
+            const tgUsername = document.getElementById('tgUsername').value.trim();
+            
+            if (!nickname || !tgUsername) {
+                showError('Заполните все поля');
+                return;
+            }
+            
+            const response = await fetch('/api/register', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    nickname: nickname,
+                    tgUsername: tgUsername.startsWith('@') ? tgUsername : '@' + tgUsername
+                })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // Сохраняем данные пользователя
+                localStorage.setItem('user', JSON.stringify(data.user));
+                // Переходим в чат
+                window.location.href = 'chat.html';
+            } else {
+                showError(data.message);
+            }
+        }
+        
+        function showError(message) {
+            const errorDiv = document.getElementById('error');
+            errorDiv.textContent = message;
+            errorDiv.style.display = 'block';
+            setTimeout(() => errorDiv.style.display = 'none', 3000);
+        }
+    </script>
+</body>
+</html>
